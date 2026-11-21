@@ -140,5 +140,77 @@ class ControlPlaneTests(unittest.TestCase):
         self.assertEqual(result, expected)
 
 
+
+    def add_device(self, device_id="device-test-1", public_key=None, address="10.77.0.2"):
+        public_key = public_key or base64.b64encode(b"r" * 32).decode()
+        with cp.db() as conn:
+            conn.execute(
+                "INSERT INTO devices(id, name, public_key, address, created_at) VALUES (?, ?, ?, ?, ?)",
+                (device_id, "Test device", public_key, address, int(time.time())),
+            )
+        return public_key
+
+    def test_revoke_removes_peer_and_marks_device_revoked(self):
+        public_key = self.add_device()
+        with patch.object(cp, "wg") as wg_mock:
+            result = cp.revoke_device("device-test-1", x_admin_key="test-admin-key-for-unit-tests-only-32")
+        self.assertEqual(result, {"revoked": True})
+        wg_mock.assert_called_once_with("set", cp.WG_INTERFACE, "peer", public_key, "remove")
+        with cp.db() as conn:
+            self.assertIsNotNone(conn.execute(
+                "SELECT revoked_at FROM devices WHERE id = ?", ("device-test-1",)
+            ).fetchone()[0])
+
+    def test_revoke_is_idempotent_for_already_revoked_device(self):
+        self.add_device()
+        with cp.db() as conn:
+            conn.execute(
+                "UPDATE devices SET revoked_at = ? WHERE id = ?",
+                (int(time.time()), "device-test-1"),
+            )
+        with patch.object(cp, "wg") as wg_mock:
+            result = cp.revoke_device("device-test-1", x_admin_key="test-admin-key-for-unit-tests-only-32")
+        self.assertEqual(result, {"revoked": True})
+        wg_mock.assert_not_called()
+
+    def test_revoke_unknown_device_returns_404(self):
+        with patch.object(cp, "wg") as wg_mock:
+            with self.assertRaises(cp.HTTPException) as caught:
+                cp.revoke_device("missing-device", x_admin_key="test-admin-key-for-unit-tests-only-32")
+        self.assertEqual(caught.exception.status_code, 404)
+        wg_mock.assert_not_called()
+
+    def test_revoke_restores_peer_when_database_update_fails(self):
+        from contextlib import contextmanager
+
+        public_key = self.add_device()
+        original_db = cp.db
+
+        @contextmanager
+        def failing_db():
+            with original_db() as conn:
+                class FailingConnection:
+                    def execute(self, sql, params=()):
+                        if sql.startswith("UPDATE devices SET revoked_at"):
+                            raise RuntimeError("simulated database write failure")
+                        return conn.execute(sql, params)
+
+                yield FailingConnection()
+
+        with patch.object(cp, "db", side_effect=failing_db), patch.object(cp, "wg") as wg_mock:
+            with self.assertRaisesRegex(RuntimeError, "simulated database write failure"):
+                cp.revoke_device("device-test-1", x_admin_key="test-admin-key-for-unit-tests-only-32")
+
+        self.assertEqual(wg_mock.call_count, 2)
+        self.assertEqual(wg_mock.call_args_list[0].args,
+                         ("set", cp.WG_INTERFACE, "peer", public_key, "remove"))
+        self.assertEqual(wg_mock.call_args_list[1].args,
+                         ("set", cp.WG_INTERFACE, "peer", public_key,
+                          "allowed-ips", "10.77.0.2/32"))
+        with original_db() as conn:
+            self.assertIsNone(conn.execute(
+                "SELECT revoked_at FROM devices WHERE id = ?", ("device-test-1",)
+            ).fetchone()[0])
+
 if __name__ == "__main__":
     unittest.main()
