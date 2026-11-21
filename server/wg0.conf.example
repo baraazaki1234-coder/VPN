@@ -1,0 +1,10 @@
+# Template only. Replace placeholders before use.
+# Keep the server private key on the Linux server; never copy it into the app or Git.
+[Interface]
+Address = 10.77.0.1/24
+ListenPort = 51820
+PrivateKey = REPLACE_WITH_SERVER_PRIVATE_KEY
+
+# Configure host-specific forwarding/NAT in your existing firewall manager.
+# Do not paste generic PostUp/PostDown rules without confirming the WAN interface
+# and current firewall policy. See NETWORK_SETUP.md.
