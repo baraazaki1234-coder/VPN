@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace = "com.novra.vpn"
+    namespace = "com.simplevpn.client"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.novra.vpn"
+        applicationId = "com.simplevpn.client"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
