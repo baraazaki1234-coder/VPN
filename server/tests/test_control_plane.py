@@ -89,6 +89,29 @@ class ControlPlaneTests(unittest.TestCase):
         self.assertEqual(caught.exception.status_code, 400)
 
 
+    def test_enrollment_rate_limit_allows_ten_attempts_then_blocks(self):
+        with cp.db() as conn:
+            conn.execute("DELETE FROM enrollment_rate_limits")
+        for attempt in range(cp.ENROLLMENT_RATE_MAX):
+            self.assertTrue(cp.record_enrollment_attempt("192.0.2.10", now=1000 + attempt))
+        self.assertFalse(cp.record_enrollment_attempt("192.0.2.10", now=1010))
+
+    def test_enrollment_rate_limit_resets_after_window(self):
+        with cp.db() as conn:
+            conn.execute("DELETE FROM enrollment_rate_limits")
+        for attempt in range(cp.ENROLLMENT_RATE_MAX + 1):
+            cp.record_enrollment_attempt("192.0.2.11", now=1000 + attempt)
+        self.assertTrue(cp.record_enrollment_attempt(
+            "192.0.2.11", now=1000 + cp.ENROLLMENT_RATE_WINDOW
+        ))
+
+    def test_enrollment_rate_limits_are_separate_per_source(self):
+        with cp.db() as conn:
+            conn.execute("DELETE FROM enrollment_rate_limits")
+        for attempt in range(cp.ENROLLMENT_RATE_MAX + 1):
+            cp.record_enrollment_attempt("192.0.2.12", now=2000 + attempt)
+        self.assertTrue(cp.record_enrollment_attempt("192.0.2.13", now=2010))
+
     def test_admin_readiness_endpoint_requires_admin_key(self):
         with self.assertRaises(cp.HTTPException) as caught:
             cp.admin_data_plane_health(x_admin_key=None)
