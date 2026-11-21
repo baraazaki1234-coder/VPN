@@ -227,4 +227,5 @@ async function refresh(){try{const d=await api('/v1/admin/devices');document.get
 async function invite(){try{const d=await api('/v1/admin/invites','POST',{label:'Device'});msg('One-time invitation (copy it now; expires in 15 minutes): '+d.invitation)}catch(e){msg(e.message)}}
 async function revoke(id){if(!confirm('Revoke this device?'))return;try{await api('/v1/admin/devices/'+id+'/revoke','POST');await refresh()}catch(e){msg(e.message)}}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+setInterval(()=>{if(key())refresh()},10000);
 </script></main></html>"""
