@@ -36,7 +36,8 @@ def load_admin_key(value: str) -> str:
 
 ADMIN_KEY = load_admin_key(os.environ["VPN_ADMIN_KEY"])
 INVITE_TTL = 15 * 60
-WG_BIN = os.getenv("WG_BIN", "wg")
+WG_HELPER = os.getenv("WG_HELPER", "/usr/local/sbin/simplevpn-wg-helper")
+SUDO_BIN = os.getenv("SUDO_BIN", "/usr/bin/sudo")
 
 app = FastAPI(title="VPN Control Plane", docs_url=None, redoc_url=None)
 
@@ -145,9 +146,33 @@ def valid_public_key(value: str) -> bool:
 
 
 def wg(*args: str):
-    result = subprocess.run([WG_BIN, *args], capture_output=True, text=True, timeout=10)
+    # Translate the small legacy call surface into fixed helper operations.
+    # The root-owned helper validates every argument again before invoking wg.
+    if len(args) == 2 and args[0] == "show":
+        operation = ["show-interface", args[1]]
+    elif len(args) == 3 and args[0] == "show" and args[2] == "dump":
+        operation = ["show-dump", args[1]]
+    elif len(args) == 6 and args[0] == "set" and args[2] == "peer" and args[4] == "allowed-ips":
+        if not args[5].endswith("/32"):
+            raise HTTPException(status_code=400, detail="Invalid peer address")
+        operation = ["add-peer", args[1], args[3], args[5][:-3]]
+    elif len(args) == 5 and args[0] == "set" and args[2] == "peer" and args[4] == "remove":
+        operation = ["remove-peer", args[1], args[3]]
+    else:
+        raise HTTPException(status_code=400, detail="Unsupported WireGuard operation")
+
+    try:
+        result = subprocess.run(
+            [SUDO_BIN, "-n", WG_HELPER, *operation],
+            capture_output=True, text=True, timeout=10, check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        logger.exception("Unable to execute the restricted WireGuard helper")
+        raise HTTPException(status_code=502, detail="WireGuard helper unavailable")
     if result.returncode:
+        logger.error("Restricted WireGuard helper failed (exit %s)", result.returncode)
         raise HTTPException(status_code=502, detail="WireGuard operation failed")
+    return result
 
 
 def allocate_ip(conn):
@@ -200,10 +225,9 @@ def check_dns_resolver():
 def data_plane_status():
     checks = {}
     try:
-        subprocess.run([WG_BIN, "show", WG_INTERFACE], capture_output=True,
-                       text=True, timeout=5, check=True)
+        wg("show", WG_INTERFACE)
         checks["wireguard_interface"] = True
-    except (OSError, subprocess.SubprocessError):
+    except (OSError, subprocess.SubprocessError, HTTPException):
         checks["wireguard_interface"] = False
     try:
         result = subprocess.run(
@@ -299,8 +323,7 @@ def list_devices(x_admin_key: Optional[str] = Header(default=None)):
         ).fetchall()
     peer_stats = {}
     try:
-        dump = subprocess.run([WG_BIN, "show", WG_INTERFACE, "dump"], capture_output=True,
-                              text=True, timeout=10, check=True).stdout
+        dump = wg("show", WG_INTERFACE, "dump").stdout
         for line in dump.splitlines()[1:]:
             fields = line.split("\t")
             if len(fields) >= 8:
