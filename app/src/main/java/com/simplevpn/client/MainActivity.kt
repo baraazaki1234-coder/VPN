@@ -29,6 +29,7 @@ class MainActivity : Activity() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private val prefs by lazy { getSharedPreferences("vpn_settings", MODE_PRIVATE) }
     private lateinit var backend: GoBackend
+    private lateinit var tunnel: Tunnel
     private lateinit var root: ScrollView
     private lateinit var statusCard: LinearLayout
     private lateinit var titleText: TextView
@@ -44,7 +45,6 @@ class MainActivity : Activity() {
     private lateinit var disconnectButton: Button
 
     private var activeConfig: Config? = null
-    private val tunnel = VpnTunnel()
     private val statsRefresh = object : Runnable {
         override fun run() {
             if (!isTunnelUp) return
@@ -76,7 +76,9 @@ class MainActivity : Activity() {
         applyPreferences()
 
         try {
-            backend = GoBackend(applicationContext)
+            val vpnApp = application as VpnApplication
+            backend = vpnApp.backend
+            tunnel = vpnApp.tunnel
         } catch (error: Throwable) {
             showError(tr("Could not initialize WireGuard: %1$s", "تعذر تشغيل محرك WireGuard: %1$s").format(error.message ?: ""))
             importButton.isEnabled = false
@@ -376,16 +378,4 @@ class MainActivity : Activity() {
         super.onDestroy()
     }
 
-    private inner class VpnTunnel : Tunnel {
-        override fun getName(): String = TUNNEL_NAME
-        override fun onStateChange(newState: Tunnel.State) {
-            runOnUiThread {
-                isTunnelUp = newState == Tunnel.State.UP
-                statusText.text = if (isTunnelUp) tr("Tunnel active", "النفق يعمل") else tr("Disconnected", "غير متصل")
-                disconnectButton.isEnabled = isTunnelUp
-                connectButton.isEnabled = !isTunnelUp && activeConfig != null
-                if (isTunnelUp) startStatsUpdates() else stopStatsUpdates()
-            }
-        }
-    }
 }
