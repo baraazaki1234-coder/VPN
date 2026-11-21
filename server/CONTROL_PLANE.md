@@ -20,6 +20,7 @@ Required environment variables:
 - `VPN_ADMIN_KEY`: independent high-entropy administration secret
 - `VPN_NETWORK`: address pool, default `10.77.0.0/24`
 - `VPN_DNS`: DNS resolver reachable through the tunnel, default `10.77.0.1`
+- `VPN_GATEWAY`: server address reserved inside the VPN subnet; defaults to the first usable address in `VPN_NETWORK`
 - `WG_INTERFACE`: WireGuard interface, default `wg0`
 - `VPN_DB_PATH`: SQLite database path
 
