@@ -232,8 +232,8 @@ class MainActivity : Activity() {
         AlertDialog.Builder(this)
             .setTitle(tr("Android leak protection", "منع تسرب الاتصال"))
             .setMessage(tr(
-                "Open Android VPN settings, select this VPN, enable Always-on VPN, then enable Block connections without VPN. Android controls these switches; this app cannot force-enable them.",
-                "افتح إعدادات VPN في Android، واختر هذا التطبيق، ثم فعّل «VPN دائم التشغيل» وبعدها «حظر الاتصالات بدون VPN». أندرويد هو الذي يتحكم في هذه الخيارات ولا يستطيع التطبيق فرض تفعيلها."
+                "Only enable this after importing a valid profile and confirming it connects. Open Android VPN settings, select this VPN, enable Always-on VPN, then enable Block connections without VPN. If the VPN cannot start, Android will block internet access. Android controls these switches; this app cannot force-enable them.",
+                "فعّل الخيارين فقط بعد استيراد إعداد صالح والتأكد من اتصاله. افتح إعدادات VPN في Android، واختر هذا التطبيق، ثم فعّل «VPN دائم التشغيل» وبعدها «حظر الاتصالات بدون VPN». لو النفق لم يعمل فسيمنع Android الإنترنت بالكامل. أندرويد هو الذي يتحكم في هذه الخيارات ولا يستطيع التطبيق فرض تفعيلها."
             ))
             .setPositiveButton(tr("Open settings", "فتح الإعدادات")) { _, _ ->
                 try {
