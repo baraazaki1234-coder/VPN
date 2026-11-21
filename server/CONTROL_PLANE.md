@@ -43,12 +43,13 @@ Open `/admin` through the HTTPS reverse proxy. The admin page keeps the key only
 - `POST /v1/admin/invites` with `X-Admin-Key`; returns a one-time invitation.
 - `POST /v1/enroll` with invitation, device name, and WireGuard public key.
 - `GET /v1/admin/devices` with `X-Admin-Key`; lists enrolled peers.
+- `GET /v1/admin/health` with `X-Admin-Key`; checks whether the WireGuard interface responds, IPv4 forwarding is enabled, and the configured DNS resolver answers a UDP query. This is a readiness signal, not proof that upstream NAT/firewall/return routing works.
 - `POST /v1/admin/devices/{id}/revoke` with `X-Admin-Key`; removes the peer from the live interface.
 
 ## Important remaining work
 
 - The Android enrollment screen now calls this API, generates a WireGuard key pair locally, sends only the public key, and stores the private key and generated profile encrypted using Android Keystore AES-GCM. This integration has not yet been built or device-tested.
-- Configure the server's WireGuard interface, forwarding, firewall, NAT/masquerading, and DNS resolver separately. The enrollment response does not advertise IPv6 by default.
+- Configure the server's WireGuard interface, forwarding, firewall, NAT/masquerading, and DNS resolver separately. `/health` is only an API liveness check; use the authenticated `/v1/admin/health` endpoint for basic data-plane readiness. The enrollment response does not advertise IPv6 by default.
 - Persist peers into the server's WireGuard configuration so they survive reboot; this initial API currently updates the live interface only.
 - Add rate limiting, audit logs, backup/restore, key rotation, and a dedicated privilege boundary before exposing this service publicly.
 - The device API and dashboard expose per-peer byte counters and latest handshake from `wg show`; refresh the page to update them. Counters are cumulative for the currently loaded interface and may reset when the interface is recreated.
