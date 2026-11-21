@@ -4,7 +4,9 @@ import hmac
 import ipaddress
 import os
 import secrets
+import socket
 import sqlite3
+import struct
 import subprocess
 import time
 import uuid
@@ -108,7 +110,60 @@ class EnrollRequest(BaseModel):
 
 @app.get("/health")
 def health():
+    # Liveness only: confirms that the API process can answer requests.
     return {"status": "ok"}
+
+
+def check_dns_resolver():
+    """Send a small DNS A query to the configured resolver over UDP."""
+    try:
+        resolver = ipaddress.ip_address(VPN_DNS)
+        if resolver.version != 4:
+            return False
+        query_id = secrets.randbelow(65536)
+        # QNAME = example.com, QTYPE=A, QCLASS=IN.
+        packet = struct.pack("!HHHHHH", query_id, 0x0100, 1, 0, 0, 0)
+        packet += b"\x07example\x03com\x00" + struct.pack("!HH", 1, 1)
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+            sock.settimeout(2.0)
+            sock.sendto(packet, (str(resolver), 53))
+            response, _ = sock.recvfrom(2048)
+        if len(response) < 12:
+            return False
+        response_id, flags = struct.unpack("!HH", response[:4])
+        return response_id == query_id and bool(flags & 0x8000) and (flags & 0x000F) == 0
+    except (OSError, ValueError):
+        return False
+
+
+def data_plane_status():
+    checks = {}
+    try:
+        subprocess.run([WG_BIN, "show", WG_INTERFACE], capture_output=True,
+                       text=True, timeout=5, check=True)
+        checks["wireguard_interface"] = True
+    except (OSError, subprocess.SubprocessError):
+        checks["wireguard_interface"] = False
+    try:
+        result = subprocess.run(
+            ["sysctl", "-n", "net.ipv4.ip_forward"],
+            capture_output=True, text=True, timeout=3, check=True
+        )
+        checks["ipv4_forwarding"] = result.stdout.strip() == "1"
+    except (OSError, subprocess.SubprocessError):
+        checks["ipv4_forwarding"] = False
+    checks["dns_resolver"] = check_dns_resolver()
+    return {
+        "status": "ready" if all(checks.values()) else "not_ready",
+        "checks": checks,
+        "note": "These checks do not prove upstream NAT, firewall, or public internet return routing."
+    }
+
+
+@app.get("/v1/admin/health")
+def admin_data_plane_health(x_admin_key: Optional[str] = Header(default=None)):
+    admin_auth(x_admin_key)
+    return data_plane_status()
 
 
 @app.post("/v1/admin/invites")
