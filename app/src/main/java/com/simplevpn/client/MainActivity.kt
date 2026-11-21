@@ -21,7 +21,6 @@ import com.wireguard.config.Config
 import com.wireguard.crypto.Key
 import com.wireguard.crypto.KeyPair
 import java.io.ByteArrayInputStream
-import java.io.File
 import java.util.Locale
 import java.util.concurrent.Executors
 
@@ -332,7 +331,7 @@ class MainActivity : Activity() {
             .setPositiveButton(tr("Register", "تسجيل")) { _, _ ->
                 val api = apiInput.text.toString().trim()
                 val invitation = inviteInput.text.toString().trim()
-                val deviceName = nameInput.text.toString().trim().ifBlank { "Android device" }
+                val deviceName = nameInput.text.toString().trim().ifBlank { "Android device" }.take(64)
                 if (api.isBlank() || invitation.isBlank()) {
                     showError(tr("Enter the HTTPS address and invitation.", "اكتب رابط HTTPS والدعوة."))
                 } else {
