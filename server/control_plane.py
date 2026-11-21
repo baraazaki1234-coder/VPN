@@ -38,6 +38,9 @@ def db():
         conn.execute("PRAGMA foreign_keys = ON")
         yield conn
         conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
     finally:
         conn.close()
 
@@ -125,22 +128,23 @@ def enroll(body: EnrollRequest):
         raise HTTPException(status_code=400, detail="Invalid WireGuard public key")
     digest = hashlib.sha256(body.invitation.encode()).hexdigest()
     with db() as conn:
-        invite = conn.execute(
-            "SELECT token_hash, expires_at, used_at FROM invites WHERE token_hash = ?", (digest,)
-        ).fetchone()
-        if not invite or invite["used_at"] is not None or invite["expires_at"] < int(time.time()):
+        now = int(time.time())
+        # Claim the invitation atomically so concurrent requests cannot reuse it.
+        claimed = conn.execute(
+            "UPDATE invites SET used_at = ? WHERE token_hash = ? AND used_at IS NULL AND expires_at >= ?",
+            (now, digest, now)
+        )
+        if claimed.rowcount != 1:
             raise HTTPException(status_code=403, detail="Invitation is invalid, expired, or already used")
         if conn.execute("SELECT 1 FROM devices WHERE public_key = ?", (body.public_key,)).fetchone():
             raise HTTPException(status_code=409, detail="This device key is already enrolled")
         address = allocate_ip(conn)
         device_id = str(uuid.uuid4())
-        # Add the peer before consuming the invitation. If wg fails, enrollment can be retried.
+        # The database transaction rolls back the invitation claim if wg fails.
         wg("set", WG_INTERFACE, "peer", body.public_key, "allowed-ips", address + "/32")
-        conn.execute("UPDATE invites SET used_at = ? WHERE token_hash = ? AND used_at IS NULL",
-                     (int(time.time()), digest))
         conn.execute(
             "INSERT INTO devices(id, name, public_key, address, created_at) VALUES (?, ?, ?, ?, ?)",
-            (device_id, body.device_name, body.public_key, address, int(time.time()))
+            (device_id, body.device_name, body.public_key, address, now)
         )
     return {
         "device_id": device_id,
