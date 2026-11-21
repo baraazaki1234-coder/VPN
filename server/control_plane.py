@@ -2,6 +2,7 @@ import base64
 import hashlib
 import hmac
 import ipaddress
+import logging
 import os
 import secrets
 import socket
@@ -17,6 +18,8 @@ from typing import Optional
 from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger(__name__)
 
 DB_PATH = os.getenv("VPN_DB_PATH", "/var/lib/simplevpn/control.db")
 WG_INTERFACE = os.getenv("WG_INTERFACE", "wg0")
@@ -269,9 +272,12 @@ def enroll(body: EnrollRequest):
             try:
                 wg("set", WG_INTERFACE, "peer", body.public_key, "remove")
             except Exception:
-                # Do not hide the original failure; server logs/monitoring
-                # should alert if the compensating operation also fails.
-                pass
+                # Keep the original request failure, but make a failed
+                # compensating operation visible to service logs/monitoring.
+                logger.exception(
+                    "WireGuard enrollment rollback failed for public key %s",
+                    body.public_key,
+                )
         raise
     return {
         "device_id": device_id,
@@ -349,9 +355,12 @@ def revoke_device(device_id: str, x_admin_key: Optional[str] = Header(default=No
                     "allowed-ips", address + "/32",
                 )
             except Exception:
-                # Preserve the original exception; operational monitoring must
-                # alert because the database and live WireGuard state may differ.
-                pass
+                # Preserve the original exception while making possible
+                # database/WireGuard divergence visible to service monitoring.
+                logger.exception(
+                    "WireGuard peer restore failed after revocation error for device %s",
+                    device_id,
+                )
         raise
     return {"revoked": True}
 

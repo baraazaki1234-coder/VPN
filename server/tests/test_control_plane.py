@@ -212,5 +212,43 @@ class ControlPlaneTests(unittest.TestCase):
                 "SELECT revoked_at FROM devices WHERE id = ?", ("device-test-1",)
             ).fetchone()[0])
 
+    def test_revoke_logs_when_peer_restore_fails(self):
+        from contextlib import contextmanager
+
+        self.add_device()
+        original_db = cp.db
+
+        @contextmanager
+        def failing_db():
+            with original_db() as conn:
+                class FailingConnection:
+                    def execute(self, sql, params=()):
+                        if sql.startswith("UPDATE devices SET revoked_at"):
+                            raise RuntimeError("simulated database write failure")
+                        return conn.execute(sql, params)
+
+                yield FailingConnection()
+
+        with patch.object(cp, "db", side_effect=failing_db), \
+             patch.object(cp, "wg", side_effect=[None, RuntimeError("simulated peer restore failure")]):
+            with self.assertLogs("control_plane", level="ERROR") as captured:
+                with self.assertRaisesRegex(RuntimeError, "simulated database write failure"):
+                    cp.revoke_device(
+                        "device-test-1",
+                        x_admin_key="test-admin-key-for-unit-tests-only-32",
+                    )
+
+        self.assertTrue(any(
+            "WireGuard peer restore failed" in message
+            and "simulated peer restore failure" in message
+            for message in captured.output
+        ))
+        with original_db() as conn:
+            self.assertIsNone(conn.execute(
+                "SELECT revoked_at FROM devices WHERE id = ?",
+                ("device-test-1",),
+            ).fetchone()[0])
+
+
 if __name__ == "__main__":
     unittest.main()
