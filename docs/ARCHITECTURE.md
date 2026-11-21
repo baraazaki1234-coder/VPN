@@ -6,7 +6,7 @@ The app is a native Kotlin application using the official WireGuard tunnel libra
 
 ## Kill switch
 
-Android owns the Always-on VPN and lockdown controls. The app opens Android VPN settings and explains the two user-controlled options:
+Android owns the Always-on VPN and lockdown controls. The app registers WireGuard's Always-on callback in the Android Application class and reloads the private saved profile when Android starts the VPN service. It also opens Android VPN settings and explains the two user-controlled options:
 1. Always-on VPN for this app.
 2. Block connections without VPN.
 
@@ -48,6 +48,7 @@ Before describing the VPN as operational, verify:
 - [x] Live transfer counters.
 - [x] Neutral interface, Arabic/English, dark/light/system settings.
 - [x] Shortcut to Android VPN settings for lockdown setup.
+- [x] Always-on startup callback that restores the locally saved profile.
 - [ ] Real WireGuard server deployment.
 - [ ] Multiple real endpoint profiles and measured failover.
 - [ ] End-to-end leak and reconnect tests.
