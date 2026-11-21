@@ -319,13 +319,40 @@ def list_devices(x_admin_key: Optional[str] = Header(default=None)):
 @app.post("/v1/admin/devices/{device_id}/revoke")
 def revoke_device(device_id: str, x_admin_key: Optional[str] = Header(default=None)):
     admin_auth(x_admin_key)
-    with db() as conn:
-        row = conn.execute("SELECT public_key FROM devices WHERE id = ?", (device_id,)).fetchone()
-        if not row:
-            raise HTTPException(status_code=404, detail="Device not found")
-        if conn.execute("SELECT revoked_at FROM devices WHERE id = ?", (device_id,)).fetchone()[0] is None:
-            wg("set", WG_INTERFACE, "peer", row["public_key"], "remove")
-            conn.execute("UPDATE devices SET revoked_at = ? WHERE id = ?", (int(time.time()), device_id))
+    peer_removed = False
+    public_key = None
+    address = None
+    try:
+        with db() as conn:
+            row = conn.execute(
+                "SELECT public_key, address, revoked_at FROM devices WHERE id = ?",
+                (device_id,),
+            ).fetchone()
+            if not row:
+                raise HTTPException(status_code=404, detail="Device not found")
+            if row["revoked_at"] is None:
+                public_key = row["public_key"]
+                address = row["address"]
+                wg("set", WG_INTERFACE, "peer", public_key, "remove")
+                peer_removed = True
+                conn.execute(
+                    "UPDATE devices SET revoked_at = ? WHERE id = ? AND revoked_at IS NULL",
+                    (int(time.time()), device_id),
+                )
+    except Exception:
+        # If SQLite fails after WireGuard removed the peer (including at commit),
+        # restore the peer so the database remains the source of truth.
+        if peer_removed and public_key and address:
+            try:
+                wg(
+                    "set", WG_INTERFACE, "peer", public_key,
+                    "allowed-ips", address + "/32",
+                )
+            except Exception:
+                # Preserve the original exception; operational monitoring must
+                # alert because the database and live WireGuard state may differ.
+                pass
+        raise
     return {"revoked": True}
 
 
