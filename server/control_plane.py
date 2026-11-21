@@ -286,14 +286,14 @@ input,button{font:inherit;padding:10px;border-radius:8px;border:1px solid #46506
 button{cursor:pointer;background:#315d9b;border:0;margin:4px}small{color:#aab2c0}.row{display:flex;gap:8px;flex-wrap:wrap}
 code{overflow-wrap:anywhere}
 </style><main><h1>VPN administration</h1><section><label>Admin key <input id="key" type="password" autocomplete="off"></label>
-<div class="row"><button onclick="refresh()">Refresh devices</button><button onclick="invite()">Create 15-minute invitation</button></div>
+<div class="row"><button onclick="refresh()">Refresh devices</button><button onclick="invite()">Create 15-minute invitation</button><button onclick="checkServer()">Check server readiness</button></div>
 <p id="message" aria-live="polite"></p></section><section><h2>Devices</h2><div id="devices">Enter the admin key to load devices.</div></section>
 <script>
 const key=()=>document.getElementById('key').value;
 const msg=t=>document.getElementById('message').textContent=t;
 async function api(path,method='GET',body){const r=await fetch(path,{method,headers:{'X-Admin-Key':key(),'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});const d=await r.json();if(!r.ok)throw Error(d.detail||'Request failed');return d}
 async function refresh(){try{const d=await api('/v1/admin/devices');document.getElementById('devices').innerHTML=d.devices.map(x=>'<article><b>'+esc(x.name)+'</b><p><code>'+esc(x.address)+'</code> · '+(x.revoked?'Revoked':'Enabled')+' · '+(x.peer_configured?'Peer loaded':'Peer missing')+'</p><small>Received: '+Number(x.received_bytes||0).toLocaleString()+' B · Sent: '+Number(x.sent_bytes||0).toLocaleString()+' B · Last handshake: '+(x.latest_handshake?new Date(x.latest_handshake*1000).toLocaleString():'Never')+'</small>'+(x.revoked?'':'<button onclick="revoke(\''+x.id+'\')">Revoke</button>')+'</article>').join('')||'No devices';msg('Updated')}catch(e){msg(e.message)}}
-async function invite(){try{const d=await api('/v1/admin/invites','POST',{label:'Device'});msg('One-time invitation (copy it now; expires in 15 minutes): '+d.invitation)}catch(e){msg(e.message)}}
+async function invite(){try{const d=await api('/v1/admin/invites','POST',{label:'Device'});msg('One-time invitation (copy it now; expires in 15 minutes): '+d.invitation)}catch(e){msg(e.message)}}\nasync function checkServer(){try{const d=await api('/v1/admin/health');msg('Server '+d.status+' · '+Object.entries(d.checks).map(([k,v])=>k+': '+(v?'OK':'FAILED')).join(' · ')+' · '+d.note)}catch(e){msg(e.message)}}
 async function revoke(id){if(!confirm('Revoke this device?'))return;try{await api('/v1/admin/devices/'+id+'/revoke','POST');await refresh()}catch(e){msg(e.message)}}
 function esc(s){return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 setInterval(()=>{if(key())refresh()},10000);
