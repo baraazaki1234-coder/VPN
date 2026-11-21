@@ -1,9 +1,7 @@
 # VPN server
 
-The server component is not deployed yet.
+The Android client uses the official WireGuard tunnel library. A real Linux WireGuard endpoint is required; this folder includes a small control-plane API foundation in `control_plane.py`.
 
-A standard WireGuard server needs a reachable UDP endpoint. A free Cloudflare Worker URL is not itself a WireGuard UDP server. A home Linux machine may be used for a private test if it remains online and the network owner allows inbound UDP forwarding; otherwise a suitable server host is required.
+See [CONTROL_PLANE.md](CONTROL_PLANE.md) for enrollment, one-time invitations, device administration, and deployment requirements.
 
-The Android app expects a normal WireGuard client profile. Keep private keys private, never commit generated `.conf` files or private keys to this repository, and only configure machines and networks you own or are authorized to administer.
-
-See [the architecture plan](../docs/ARCHITECTURE.md) for the required verification gates.
+The control plane does not deploy a server, configure NAT/DNS/firewall automatically, or persist peers across server reboot yet. Do not expose it publicly without HTTPS, a dedicated least-privilege WireGuard helper, rate limiting, and audit logging.
