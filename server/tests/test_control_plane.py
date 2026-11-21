@@ -64,7 +64,7 @@ class ControlPlaneTests(unittest.TestCase):
         wg_mock.assert_not_called()
 
     def test_data_plane_readiness_requires_interface_forwarding_and_dns(self):
-        completed = type("Completed", (), {"stdout": "1\\n"})()
+        completed = type("Completed", (), {"stdout": "1"})()
         with patch.object(cp.subprocess, "run", return_value=completed), \
              patch.object(cp, "check_dns_resolver", return_value=True):
             status = cp.data_plane_status()
@@ -72,7 +72,7 @@ class ControlPlaneTests(unittest.TestCase):
         self.assertTrue(all(status["checks"].values()))
 
     def test_data_plane_readiness_reports_missing_forwarding(self):
-        completed = type("Completed", (), {"stdout": "0\\n"})()
+        completed = type("Completed", (), {"stdout": "0"})()
         with patch.object(cp.subprocess, "run", return_value=completed), \
              patch.object(cp, "check_dns_resolver", return_value=True):
             status = cp.data_plane_status()
