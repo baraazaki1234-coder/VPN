@@ -1,0 +1,36 @@
+[Unit]
+Description=SimpleVPN control-plane API
+Wants=network-online.target
+After=network-online.target wg-quick@wg0.service
+Requires=wg-quick@wg0.service
+
+[Service]
+Type=simple
+User=simplevpn
+Group=simplevpn
+WorkingDirectory=/opt/simplevpn/server
+EnvironmentFile=/etc/simplevpn/control-plane.env
+ExecStart=/usr/bin/python3 -m uvicorn control_plane:app --host 127.0.0.1 --port 8080 --workers 1
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+UMask=0077
+
+# Keep the API isolated from the host filesystem and kernel configuration.
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/simplevpn
+
+# Required: sudo must be able to use its setuid transition for the one
+# root-owned, allowlisted WireGuard helper. The API itself still runs as
+# the unprivileged simplevpn account; sudoers must grant only that helper.
+NoNewPrivileges=false
+
+[Install]
+WantedBy=multi-user.target
