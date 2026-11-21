@@ -169,7 +169,7 @@ def wg(*args: str):
     except (OSError, subprocess.SubprocessError):
         logger.exception("Unable to execute the restricted WireGuard helper")
         raise HTTPException(status_code=502, detail="WireGuard helper unavailable")
-    if result.returncode:
+    if getattr(result, "returncode", 0):
         logger.error("Restricted WireGuard helper failed (exit %s)", result.returncode)
         raise HTTPException(status_code=502, detail="WireGuard operation failed")
     return result
