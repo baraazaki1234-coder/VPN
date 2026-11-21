@@ -27,6 +27,6 @@ See [server/CONTROL_PLANE.md](server/CONTROL_PLANE.md) and [server/NETWORK_SETUP
 
 - No VPN server is deployed or selected.
 - Android enrollment integration is written but has not yet been built or device-tested.
-- Server NAT, firewall, DNS, peer persistence, and traffic accounting still need implementation.
+- Server NAT, firewall, and DNS still need host-specific configuration. A peer-restore helper exists but has not been installed or tested on a Linux server. Traffic counters are read from the live WireGuard interface.
 - Endpoint auto-selection needs multiple real WireGuard servers; public DNS services are not VPN endpoints.
 - No APK has been built and no Android device test has been run. Building remains deferred until explicitly requested.
