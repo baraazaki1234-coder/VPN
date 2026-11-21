@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Intent
 import android.net.VpnService
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.widget.Button
 import android.widget.TextView
 import android.widget.Toast
@@ -12,14 +14,33 @@ import com.wireguard.android.backend.Tunnel
 import com.wireguard.config.Config
 import java.io.ByteArrayInputStream
 import java.io.File
+import java.util.Locale
 import java.util.concurrent.Executors
 
 class MainActivity : Activity() {
     private val worker = Executors.newSingleThreadExecutor()
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val statsRefresh = object : Runnable {
+        override fun run() {
+            if (statusText.text != "متصل") return
+            worker.execute {
+                try {
+                    val stats = backend.getStatistics(tunnel)
+                    runOnUiThread {
+                        statsText.text = "استقبال: ${formatBytes(stats.totalRx())}  •  إرسال: ${formatBytes(stats.totalTx())}"
+                    }
+                } catch (_: Exception) {
+                    // Keep the last visible counters; a later refresh can recover.
+                }
+            }
+            mainHandler.postDelayed(this, 3000)
+        }
+    }
     private lateinit var backend: GoBackend
     private lateinit var statusText: TextView
     private lateinit var detailText: TextView
     private lateinit var configName: TextView
+    private lateinit var statsText: TextView
     private lateinit var importButton: Button
     private lateinit var connectButton: Button
     private lateinit var disconnectButton: Button
@@ -40,6 +61,7 @@ class MainActivity : Activity() {
         statusText = findViewById(R.id.statusText)
         detailText = findViewById(R.id.detailText)
         configName = findViewById(R.id.configName)
+        statsText = findViewById(R.id.statsText)
         importButton = findViewById(R.id.importButton)
         connectButton = findViewById(R.id.connectButton)
         disconnectButton = findViewById(R.id.disconnectButton)
@@ -135,6 +157,7 @@ class MainActivity : Activity() {
                     detailText.text = "بدأ النفق محليًا. هذا لا يؤكد وحده أن الخادم متاح أو أن الإنترنت يمر عبره."
                     setBusy(false)
                     disconnectButton.isEnabled = true
+                    startStatsUpdates()
                 }
             } catch (error: Exception) {
                 runOnUiThread {
@@ -156,6 +179,7 @@ class MainActivity : Activity() {
                     setBusy(false)
                     connectButton.isEnabled = activeConfig != null
                     disconnectButton.isEnabled = false
+                    stopStatsUpdates()
                 }
             } catch (error: Exception) {
                 runOnUiThread {
@@ -173,6 +197,28 @@ class MainActivity : Activity() {
         disconnectButton.isEnabled = !busy && statusText.text == "متصل"
     }
 
+    private fun startStatsUpdates() {
+        mainHandler.removeCallbacks(statsRefresh)
+        mainHandler.post(statsRefresh)
+    }
+
+    private fun stopStatsUpdates() {
+        mainHandler.removeCallbacks(statsRefresh)
+        statsText.text = "البيانات: —"
+    }
+
+    private fun formatBytes(value: Long): String {
+        if (value < 1024) return "${value} B"
+        val units = arrayOf("KB", "MB", "GB", "TB")
+        var amount = value.toDouble()
+        var index = -1
+        do {
+            amount /= 1024.0
+            index++
+        } while (amount >= 1024.0 && index < units.lastIndex)
+        return String.format(Locale.US, "%.1f %s", amount, units[index])
+    }
+
     private fun showError(message: String) {
         detailText.text = message
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
@@ -183,6 +229,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        mainHandler.removeCallbacks(statsRefresh)
         worker.shutdown()
         super.onDestroy()
     }
@@ -195,6 +242,7 @@ class MainActivity : Activity() {
                 statusText.text = if (up) "متصل" else "غير متصل"
                 disconnectButton.isEnabled = up
                 connectButton.isEnabled = !up && activeConfig != null
+                if (up) startStatsUpdates() else stopStatsUpdates()
             }
         }
     }
