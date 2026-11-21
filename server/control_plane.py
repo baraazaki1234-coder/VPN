@@ -169,7 +169,7 @@ def list_devices(x_admin_key: Optional[str] = Header(default=None)):
         dump = subprocess.run([WG_BIN, "show", WG_INTERFACE, "dump"], capture_output=True,
                               text=True, timeout=10, check=True).stdout
         for line in dump.splitlines()[1:]:
-            fields = line.split("\\t")
+            fields = line.split("\t")
             if len(fields) >= 8:
                 peer_stats[fields[0]] = {
                     "latest_handshake": int(fields[4]),
