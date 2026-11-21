@@ -45,7 +45,7 @@ Open `/admin` through the HTTPS reverse proxy. The admin page keeps the key only
 
 ## Important remaining work
 
-- The Android enrollment UI and local WireGuard key generation/profile assembly are not connected to this API yet.
+- The Android enrollment screen now calls this API, generates a WireGuard key pair locally, sends only the public key, and stores the private key and generated profile encrypted using Android Keystore AES-GCM. This integration has not yet been built or device-tested.
 - Configure the server's WireGuard interface, forwarding, firewall, NAT/masquerading, and DNS resolver separately.
 - Persist peers into the server's WireGuard configuration so they survive reboot; this initial API currently updates the live interface only.
 - Add rate limiting, audit logs, backup/restore, key rotation, and a dedicated privilege boundary before exposing this service publicly.
