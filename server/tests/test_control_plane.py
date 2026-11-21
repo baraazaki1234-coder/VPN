@@ -1,5 +1,6 @@
 """Focused control-plane tests; run with: python -m unittest discover -s tests"""
 import base64
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import os
 import tempfile
@@ -50,6 +51,46 @@ class ControlPlaneTests(unittest.TestCase):
             self.assertIsNotNone(conn.execute(
                 "SELECT used_at FROM invites"
             ).fetchone()[0])
+
+    def test_concurrent_enrollment_allocates_distinct_addresses(self):
+        from threading import Barrier
+
+        invitations = [
+            "invite-token-for-concurrency-test-0001",
+            "invite-token-for-concurrency-test-0002",
+        ]
+        public_keys = [
+            base64.b64encode(b"c" * 32).decode(),
+            base64.b64encode(b"d" * 32).decode(),
+        ]
+        for token in invitations:
+            self.add_invite(token)
+
+        start_together = Barrier(2)
+
+        def enroll_device(index):
+            start_together.wait(timeout=5)
+            return cp.enroll(cp.EnrollRequest(
+                invitation=invitations[index],
+                device_name=f"Concurrent device {index}",
+                public_key=public_keys[index],
+            ))
+
+        with patch.object(cp, "wg") as wg_mock:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                results = list(pool.map(enroll_device, range(2)))
+
+        addresses = {result["assigned_address"] for result in results}
+        self.assertEqual(len(addresses), 2)
+        self.assertEqual(wg_mock.call_count, 2)
+        with cp.db() as conn:
+            rows = conn.execute(
+                "SELECT address, public_key FROM devices WHERE public_key IN (?, ?)",
+                public_keys,
+            ).fetchall()
+        self.assertEqual(len(rows), 2)
+        self.assertEqual({row["address"] + "/32" for row in rows}, addresses)
+        self.assertEqual({row["public_key"] for row in rows}, set(public_keys))
 
     def test_expired_invitation_is_rejected_without_adding_peer(self):
         token = "invite-token-for-unit-test-0002-extra"
