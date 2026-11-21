@@ -32,7 +32,7 @@ class ControlPlaneTests(unittest.TestCase):
             )
 
     def test_enrollment_adds_only_ipv4_default_route(self):
-        token = "invite-token-for-unit-test-0001"
+        token = "invite-token-for-unit-test-0001-extra"
         public_key = base64.b64encode(b"p" * 32).decode()
         self.add_invite(token)
         with patch.object(cp, "wg") as wg_mock:
@@ -52,7 +52,7 @@ class ControlPlaneTests(unittest.TestCase):
             ).fetchone()[0])
 
     def test_expired_invitation_is_rejected_without_adding_peer(self):
-        token = "invite-token-for-unit-test-0002"
+        token = "invite-token-for-unit-test-0002-extra"
         self.add_invite(token, expires=int(time.time()) - 1)
         public_key = base64.b64encode(b"q" * 32).decode()
         with patch.object(cp, "wg") as wg_mock:
@@ -66,7 +66,7 @@ class ControlPlaneTests(unittest.TestCase):
     def test_invalid_wireguard_public_key_is_rejected(self):
         with self.assertRaises(cp.HTTPException) as caught:
             cp.enroll(cp.EnrollRequest(
-                invitation="invite-token-for-unit-test-0003",
+                invitation="invite-token-for-unit-test-0003-extra",
                 device_name="Bad key",
                 public_key=base64.b64encode(b"short").decode(),
             ))
