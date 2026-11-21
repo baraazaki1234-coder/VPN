@@ -128,32 +128,45 @@ def enroll(body: EnrollRequest):
     if not valid_public_key(body.public_key):
         raise HTTPException(status_code=400, detail="Invalid WireGuard public key")
     digest = hashlib.sha256(body.invitation.encode()).hexdigest()
-    with db() as conn:
-        now = int(time.time())
-        # Claim the invitation atomically so concurrent requests cannot reuse it.
-        claimed = conn.execute(
-            "UPDATE invites SET used_at = ? WHERE token_hash = ? AND used_at IS NULL AND expires_at >= ?",
-            (now, digest, now)
-        )
-        if claimed.rowcount != 1:
-            raise HTTPException(status_code=403, detail="Invitation is invalid, expired, or already used")
-        if conn.execute("SELECT 1 FROM devices WHERE public_key = ?", (body.public_key,)).fetchone():
-            raise HTTPException(status_code=409, detail="This device key is already enrolled")
-        address = allocate_ip(conn)
-        device_id = str(uuid.uuid4())
-        # The database transaction rolls back the invitation claim if wg fails.
-        wg("set", WG_INTERFACE, "peer", body.public_key, "allowed-ips", address + "/32")
-        conn.execute(
-            "INSERT INTO devices(id, name, public_key, address, created_at) VALUES (?, ?, ?, ?, ?)",
-            (device_id, body.device_name, body.public_key, address, now)
-        )
+    peer_added = False
+    try:
+        # Keep the invitation claim, device row, and live peer in sync. SQLite
+        # rolls back the claim/row on failure; the compensating wg operation
+        # removes a peer if the database insert or commit fails afterwards.
+        with db() as conn:
+            now = int(time.time())
+            claimed = conn.execute(
+                "UPDATE invites SET used_at = ? WHERE token_hash = ? AND used_at IS NULL AND expires_at >= ?",
+                (now, digest, now)
+            )
+            if claimed.rowcount != 1:
+                raise HTTPException(status_code=403, detail="Invitation is invalid, expired, or already used")
+            if conn.execute("SELECT 1 FROM devices WHERE public_key = ?", (body.public_key,)).fetchone():
+                raise HTTPException(status_code=409, detail="This device key is already enrolled")
+            address = allocate_ip(conn)
+            device_id = str(uuid.uuid4())
+            wg("set", WG_INTERFACE, "peer", body.public_key, "allowed-ips", address + "/32")
+            peer_added = True
+            conn.execute(
+                "INSERT INTO devices(id, name, public_key, address, created_at) VALUES (?, ?, ?, ?, ?)",
+                (device_id, body.device_name, body.public_key, address, now)
+            )
+    except Exception:
+        if peer_added:
+            try:
+                wg("set", WG_INTERFACE, "peer", body.public_key, "remove")
+            except Exception:
+                # Do not hide the original failure; server logs/monitoring
+                # should alert if the compensating operation also fails.
+                pass
+        raise
     return {
         "device_id": device_id,
         "assigned_address": address + "/32",
         "server_endpoint": WG_ENDPOINT,
         "server_public_key": WG_SERVER_PUBLIC_KEY,
         "dns": VPN_DNS,
-        "allowed_ips": "0.0.0.0/0, ::/0",
+        "allowed_ips": "0.0.0.0/0",
         "persistent_keepalive": 25
     }
 
