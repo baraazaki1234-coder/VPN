@@ -44,3 +44,24 @@ Before enabling Android lockdown, test with one authorized device:
 6. Disconnect the tunnel and verify Android lockdown blocks non-VPN traffic.
 
 This repository does not install firewall/NAT rules automatically. Exact firewall commands depend on the Linux distribution, firewall manager, and uplink interface; avoid mixing unmanaged iptables/nftables rules with an existing firewall configuration.
+
+
+## Configuration templates
+
+This directory includes starter files, not a turnkey server installer:
+
+- `wg0.conf.example`: WireGuard interface skeleton. Replace the private-key placeholder on the server only.
+- `vpn.env.example`: control-plane environment template. Generate a fresh random admin secret and keep the real file outside Git.
+- `sysctl.d/99-simplevpn.conf`: enables IPv4 forwarding. Review local policy before installing.
+
+Suggested preparation (review paths and ownership for your distribution):
+
+1. Create a dedicated `simplevpn` service account and protected state directory.
+2. Copy the example environment file to `/etc/simplevpn/control-plane.env`, replace all placeholders, and restrict access (for example, root-owned mode `0600`).
+3. Create the WireGuard server keypair on the Linux host and place only its private key in the host's protected WireGuard configuration.
+4. Install the sysctl snippet only after confirming that this host is intended to route traffic; then apply it using your distribution's normal sysctl procedure.
+5. Configure the firewall/NAT and a real DNS resolver separately. The example intentionally does not guess your WAN interface or overwrite firewall rules.
+
+The API currently invokes `wg` directly. Do not expose the API to the public internet or run it as an unrestricted privileged service. Before production deployment, replace direct command execution with a narrowly scoped privileged helper, add rate limiting and audit logging, and put the API behind HTTPS. The admin dashboard is not an authentication substitute; protect it at the reverse proxy as well.
+
+The readiness endpoint checks that WireGuard responds, IPv4 forwarding is enabled, and the configured DNS address answers a small UDP query. It does **not** validate NAT, firewall policy, public routing, or end-to-end client traffic.
