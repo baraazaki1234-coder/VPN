@@ -49,5 +49,5 @@ Open `/admin` through the HTTPS reverse proxy. The admin page keeps the key only
 - Configure the server's WireGuard interface, forwarding, firewall, NAT/masquerading, and DNS resolver separately.
 - Persist peers into the server's WireGuard configuration so they survive reboot; this initial API currently updates the live interface only.
 - Add rate limiting, audit logs, backup/restore, key rotation, and a dedicated privilege boundary before exposing this service publicly.
-- The device list reports peer presence, not reliable per-device traffic totals yet. Use per-peer transfer counters from `wg show` in a later dashboard pass.
+- The device API and dashboard expose per-peer byte counters and latest handshake from `wg show`; refresh the page to update them. Counters are cumulative for the currently loaded interface and may reset when the interface is recreated.
 - Do not enable Android lockdown until a real server is configured and the full route and DNS path have been tested.
