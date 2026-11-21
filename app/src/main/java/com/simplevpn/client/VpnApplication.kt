@@ -4,7 +4,7 @@ import android.app.Application
 import com.wireguard.android.backend.GoBackend
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.config.Config
-import java.io.File
+import java.io.ByteArrayInputStream
 import java.util.concurrent.Executors
 
 class VpnApplication : Application() {
@@ -24,9 +24,9 @@ class VpnApplication : Application() {
         GoBackend.setAlwaysOnCallback {
             alwaysOnExecutor.execute {
                 try {
-                    val profile = File(filesDir, "tunnel.conf")
-                    if (profile.isFile) {
-                        val config = profile.inputStream().use { Config.parse(it) }
+                    val profile = DeviceVault(this).readBytes("tunnel.conf.enc")
+                    if (profile != null) {
+                        val config = Config.parse(ByteArrayInputStream(profile))
                         backend.setState(tunnel, Tunnel.State.UP, config)
                     }
                 } catch (_: Exception) {
