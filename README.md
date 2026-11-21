@@ -1,22 +1,26 @@
-# Novra VPN
+# VPN
 
-Native Android WireGuard client foundation.
+A simple native Android WireGuard client.
 
-## Implemented in this branch
+## Current app features
 
-- Native Android application (not a WebView/PWA).
-- Arabic-first starter interface with Novra branding.
-- Imports standard WireGuard `.conf` profiles through Android's document picker.
-- Validates the profile with the official WireGuard tunnel parser.
-- Stores the selected profile in app-private storage.
-- Starts and stops the userspace WireGuard backend through Android's VPN permission flow.
+- Neutral interface without product branding.
+- Arabic and English UI.
+- Dark and light appearance modes, plus follow-system option.
+- Import and validate standard WireGuard `.conf` profiles.
+- Save the selected profile in app-private storage.
+- Connect/disconnect through Android's VPN consent flow.
+- Display live WireGuard transfer counters while the tunnel is active.
+- Shortcut and instructions for Android's Always-on VPN and Block connections without VPN settings.
 
-## Important server requirement
+## Important limitations
 
-This repository does not yet contain a VPN server. A valid peer configuration from a server is required before traffic can pass through a real tunnel. The app must not be described as providing a working internet VPN until a server endpoint is deployed and connectivity, DNS, routing, and handshake behavior are verified.
+This repository does not yet include a VPN server or a pool of VPN endpoints. A valid profile from a reachable WireGuard server is required for actual internet traffic. The app's local tunnel state is not proof of a successful remote handshake or working internet route.
 
-The tunnel library is published on Maven Central as `com.wireguard.android:tunnel` and is licensed under Apache-2.0. See the [official WireGuard Android project](https://github.com/WireGuard/wireguard-android).
+Android controls the Always-on VPN and lockdown switches. The app can open the system VPN settings and explain how to enable them, but it cannot silently force-enable them.
+
+Automatic server selection will only be implemented for real WireGuard endpoints with valid peer configurations. Public DNS and HTTPS test services such as Google or Cloudflare are useful for measuring general network reachability, but they are not interchangeable WireGuard exit servers.
 
 ## Build status
 
-No APK has been built. Build and device testing are intentionally deferred.
+No APK has been built. Build and device testing remain deferred until explicitly requested.
