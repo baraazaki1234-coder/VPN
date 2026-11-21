@@ -29,7 +29,13 @@ class DeviceVault(context: Context) {
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
         val encrypted = cipher.doFinal(plaintext)
         val output = cipher.iv + encrypted
-        File(directory, name).writeBytes(output)
+        val target = File(directory, name)
+        val temporary = File(directory, "$name.tmp")
+        temporary.writeBytes(output)
+        if (!temporary.renameTo(target)) {
+            temporary.delete()
+            throw IllegalStateException("Could not safely save encrypted device data")
+        }
     }
 
     fun readBytes(name: String): ByteArray? {
