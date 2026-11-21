@@ -22,6 +22,7 @@ WG_ENDPOINT = os.environ["WG_ENDPOINT"]  # public host:UDP port
 WG_SERVER_PUBLIC_KEY = os.environ["WG_SERVER_PUBLIC_KEY"]
 VPN_NETWORK = ipaddress.ip_network(os.getenv("VPN_NETWORK", "10.77.0.0/24"))
 VPN_DNS = os.getenv("VPN_DNS", "10.77.0.1")
+VPN_GATEWAY = os.getenv("VPN_GATEWAY", str(next(VPN_NETWORK.hosts())))
 ADMIN_KEY = os.environ["VPN_ADMIN_KEY"]
 INVITE_TTL = 15 * 60
 WG_BIN = os.getenv("WG_BIN", "wg")
@@ -90,7 +91,7 @@ def allocate_ip(conn):
     used = {row["address"] for row in conn.execute("SELECT address FROM devices")}
     for host in VPN_NETWORK.hosts():
         address = str(host)
-        if address != VPN_DNS and address not in used:
+        if address not in {VPN_DNS, VPN_GATEWAY} and address not in used:
             return address
     raise HTTPException(status_code=409, detail="VPN address pool exhausted")
 
