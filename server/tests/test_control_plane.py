@@ -92,6 +92,44 @@ class ControlPlaneTests(unittest.TestCase):
         self.assertEqual({row["address"] + "/32" for row in rows}, addresses)
         self.assertEqual({row["public_key"] for row in rows}, set(public_keys))
 
+    def test_concurrent_claim_of_one_invitation_succeeds_only_once(self):
+        from threading import Barrier
+
+        token = "single-invitation-concurrency-test-0001"
+        self.add_invite(token)
+        public_keys = [
+            base64.b64encode(b"e" * 32).decode(),
+            base64.b64encode(b"f" * 32).decode(),
+        ]
+        start_together = Barrier(2)
+
+        def try_enroll(index):
+            start_together.wait(timeout=5)
+            try:
+                cp.enroll(cp.EnrollRequest(
+                    invitation=token,
+                    device_name=f"Competing device {index}",
+                    public_key=public_keys[index],
+                ))
+                return "success"
+            except cp.HTTPException as exc:
+                return exc.status_code
+
+        with patch.object(cp, "wg") as wg_mock:
+            with ThreadPoolExecutor(max_workers=2) as pool:
+                outcomes = list(pool.map(try_enroll, range(2)))
+
+        self.assertEqual(outcomes.count("success"), 1)
+        self.assertEqual(outcomes.count(403), 1)
+        wg_mock.assert_called_once()
+        with cp.db() as conn:
+            self.assertEqual(conn.execute(
+                "SELECT COUNT(*) FROM devices"
+            ).fetchone()[0], 1)
+            self.assertEqual(conn.execute(
+                "SELECT COUNT(*) FROM invites WHERE used_at IS NOT NULL"
+            ).fetchone()[0], 1)
+
     def test_expired_invitation_is_rejected_without_adding_peer(self):
         token = "invite-token-for-unit-test-0002-extra"
         self.add_invite(token, expires=int(time.time()) - 1)
