@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import FastAPI, Header, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import BaseModel, Field
 
 DB_PATH = os.getenv("VPN_DB_PATH", "/var/lib/simplevpn/control.db")
@@ -64,10 +64,62 @@ def init_db():
             created_at INTEGER NOT NULL,
             revoked_at INTEGER
         );
+        CREATE TABLE IF NOT EXISTS enrollment_rate_limits (
+            client_ip TEXT PRIMARY KEY,
+            window_started_at INTEGER NOT NULL,
+            attempts INTEGER NOT NULL
+        );
         """)
 
 
 init_db()
+
+
+# Limit unauthenticated invitation guesses per source address. The counter is
+# persisted in SQLite so restarting the API does not reset the protection.
+ENROLLMENT_RATE_WINDOW = 10 * 60
+ENROLLMENT_RATE_MAX = 10
+
+
+def record_enrollment_attempt(client_ip: str, now: Optional[int] = None) -> bool:
+    now = int(time.time()) if now is None else int(now)
+    with db() as conn:
+        conn.execute(
+            """
+            INSERT INTO enrollment_rate_limits(client_ip, window_started_at, attempts)
+            VALUES (?, ?, 1)
+            ON CONFLICT(client_ip) DO UPDATE SET
+                window_started_at = CASE
+                    WHEN excluded.window_started_at - enrollment_rate_limits.window_started_at >= ?
+                    THEN excluded.window_started_at
+                    ELSE enrollment_rate_limits.window_started_at
+                END,
+                attempts = CASE
+                    WHEN excluded.window_started_at - enrollment_rate_limits.window_started_at >= ?
+                    THEN 1
+                    ELSE enrollment_rate_limits.attempts + 1
+                END
+            """,
+            (client_ip, now, ENROLLMENT_RATE_WINDOW, ENROLLMENT_RATE_WINDOW),
+        )
+        row = conn.execute(
+            "SELECT attempts FROM enrollment_rate_limits WHERE client_ip = ?",
+            (client_ip,),
+        ).fetchone()
+        return row["attempts"] <= ENROLLMENT_RATE_MAX
+
+
+@app.middleware("http")
+async def limit_enrollment_requests(request, call_next):
+    if request.url.path == "/v1/enroll" and request.method == "POST":
+        client_ip = request.client.host if request.client else "unknown"
+        if not record_enrollment_attempt(client_ip):
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "Too many enrollment attempts; try again later"},
+                headers={"Retry-After": str(ENROLLMENT_RATE_WINDOW)},
+            )
+    return await call_next(request)
 
 
 def admin_auth(value: Optional[str]):
