@@ -3,14 +3,18 @@ name: Control Plane Tests
 on:
   push:
     branches:
+      - main
       - work/novra-vpn-foundation
     paths:
       - "server/**"
       - ".github/workflows/control-plane-tests.yml"
   pull_request:
+    branches:
+      - main
     paths:
       - "server/**"
       - ".github/workflows/control-plane-tests.yml"
+  workflow_dispatch:
 
 permissions:
   contents: read
