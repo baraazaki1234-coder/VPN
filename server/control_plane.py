@@ -164,16 +164,27 @@ def list_devices(x_admin_key: Optional[str] = Header(default=None)):
         rows = conn.execute(
             "SELECT id, name, public_key, address, created_at, revoked_at FROM devices ORDER BY created_at DESC"
         ).fetchall()
+    peer_stats = {}
     try:
         dump = subprocess.run([WG_BIN, "show", WG_INTERFACE, "dump"], capture_output=True,
                               text=True, timeout=10, check=True).stdout
-        live_keys = {line.split("\t")[0] for line in dump.splitlines()[1:] if line.strip()}
+        for line in dump.splitlines()[1:]:
+            fields = line.split("\\t")
+            if len(fields) >= 8:
+                peer_stats[fields[0]] = {
+                    "latest_handshake": int(fields[4]),
+                    "received_bytes": int(fields[5]),
+                    "sent_bytes": int(fields[6])
+                }
     except Exception:
-        live_keys = set()
+        peer_stats = {}
     return {"devices": [
         {"id": r["id"], "name": r["name"], "address": r["address"],
          "created_at": r["created_at"], "revoked": r["revoked_at"] is not None,
-         "peer_configured": r["public_key"] in live_keys}
+         "peer_configured": r["public_key"] in peer_stats,
+         "latest_handshake": peer_stats.get(r["public_key"], {}).get("latest_handshake", 0),
+         "received_bytes": peer_stats.get(r["public_key"], {}).get("received_bytes", 0),
+         "sent_bytes": peer_stats.get(r["public_key"], {}).get("sent_bytes", 0)}
         for r in rows
     ]}
 
