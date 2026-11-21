@@ -25,7 +25,13 @@ WG_SERVER_PUBLIC_KEY = os.environ["WG_SERVER_PUBLIC_KEY"]
 VPN_NETWORK = ipaddress.ip_network(os.getenv("VPN_NETWORK", "10.77.0.0/24"))
 VPN_DNS = os.getenv("VPN_DNS", "10.77.0.1")
 VPN_GATEWAY = os.getenv("VPN_GATEWAY", str(next(VPN_NETWORK.hosts())))
-ADMIN_KEY = os.environ["VPN_ADMIN_KEY"]
+def load_admin_key(value: str) -> str:
+    if len(value.encode("utf-8")) < 32:
+        raise RuntimeError("VPN_ADMIN_KEY must contain at least 32 UTF-8 bytes")
+    return value
+
+
+ADMIN_KEY = load_admin_key(os.environ["VPN_ADMIN_KEY"])
 INVITE_TTL = 15 * 60
 WG_BIN = os.getenv("WG_BIN", "wg")
 
