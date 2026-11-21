@@ -132,7 +132,7 @@ class MainActivity : Activity() {
                 backend.setState(tunnel, Tunnel.State.UP, config)
                 runOnUiThread {
                     statusText.text = "متصل"
-                    detailText.text = "تم تشغيل واجهة النفق. تحقق من ظهور مصافحة حديثة قبل الاعتماد على الاتصال."
+                    detailText.text = "بدأ النفق محليًا. هذا لا يؤكد وحده أن الخادم متاح أو أن الإنترنت يمر عبره."
                     setBusy(false)
                     disconnectButton.isEnabled = true
                 }
