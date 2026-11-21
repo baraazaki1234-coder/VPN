@@ -9,6 +9,7 @@ This is a self-hosted control-plane foundation for a standard WireGuard server. 
 - An invitation is a random one-time bearer token. Only its SHA-256 hash is stored; it expires after 900 seconds and can be consumed once.
 - The server allocates one /32 address and adds the public key to the existing `wg0` interface.
 - The response includes public connection parameters only. Android combines them with its locally held private key to build the client profile.
+- The default client route is IPv4-only (`0.0.0.0/0`). Enable an IPv6 default route only after the server has working IPv6 forwarding, firewall policy, and return routing.
 - The admin API uses a separate `VPN_ADMIN_KEY`. Keep it out of the Android app, URLs, logs, source control, and browser local storage. Use HTTPS and a strong random value.
 
 ## Environment
@@ -47,7 +48,7 @@ Open `/admin` through the HTTPS reverse proxy. The admin page keeps the key only
 ## Important remaining work
 
 - The Android enrollment screen now calls this API, generates a WireGuard key pair locally, sends only the public key, and stores the private key and generated profile encrypted using Android Keystore AES-GCM. This integration has not yet been built or device-tested.
-- Configure the server's WireGuard interface, forwarding, firewall, NAT/masquerading, and DNS resolver separately.
+- Configure the server's WireGuard interface, forwarding, firewall, NAT/masquerading, and DNS resolver separately. The enrollment response does not advertise IPv6 by default.
 - Persist peers into the server's WireGuard configuration so they survive reboot; this initial API currently updates the live interface only.
 - Add rate limiting, audit logs, backup/restore, key rotation, and a dedicated privilege boundary before exposing this service publicly.
 - The device API and dashboard expose per-peer byte counters and latest handshake from `wg show`; refresh the page to update them. Counters are cumulative for the currently loaded interface and may reset when the interface is recreated.
