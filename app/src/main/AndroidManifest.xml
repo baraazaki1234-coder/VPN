@@ -4,12 +4,13 @@
 
     <application
         android:allowBackup="false"
+        android:icon="@drawable/ic_novra"
         android:label="@string/app_name"
+        android:roundIcon="@drawable/ic_novra"
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
         <activity
             android:name=".MainActivity"
-            android:configChanges="orientation|screenSize"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
