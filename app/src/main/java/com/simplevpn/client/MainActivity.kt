@@ -18,6 +18,8 @@ import android.widget.Toast
 import com.wireguard.android.backend.GoBackend
 import com.wireguard.android.backend.Tunnel
 import com.wireguard.config.Config
+import com.wireguard.crypto.Key
+import com.wireguard.crypto.KeyPair
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.util.Locale
@@ -40,6 +42,7 @@ class MainActivity : Activity() {
     private lateinit var securityNote: TextView
     private lateinit var settingsButton: Button
     private lateinit var importButton: Button
+    private lateinit var enrollButton: Button
     private lateinit var connectButton: Button
     private lateinit var disconnectButton: Button
 
@@ -64,7 +67,8 @@ class MainActivity : Activity() {
     companion object {
         private const val REQUEST_IMPORT = 4101
         private const val REQUEST_VPN_PERMISSION = 4102
-        private const val CONFIG_FILE = "tunnel.conf"
+        private const val CONFIG_FILE = "tunnel.conf.enc"
+        private const val PRIVATE_KEY_FILE = "device-private.key.enc"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -84,6 +88,7 @@ class MainActivity : Activity() {
         }
 
         settingsButton.setOnClickListener { showSettings() }
+        enrollButton.setOnClickListener { showEnrollmentDialog() }
         importButton.setOnClickListener {
             val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
                 addCategory(Intent.CATEGORY_OPENABLE)
@@ -125,6 +130,7 @@ class MainActivity : Activity() {
         securityNote = findViewById(R.id.securityNote)
         settingsButton = findViewById(R.id.settingsButton)
         importButton = findViewById(R.id.importButton)
+        enrollButton = findViewById(R.id.enrollButton)
         connectButton = findViewById(R.id.connectButton)
         disconnectButton = findViewById(R.id.disconnectButton)
     }
@@ -165,6 +171,7 @@ class MainActivity : Activity() {
         titleText.text = "VPN"
         subtitleText.text = tr("Private connection through an encrypted tunnel", "اتصال خاص عبر نفق مشفّر")
         settingsButton.text = tr("Settings", "الإعدادات")
+        enrollButton.text = tr("Register this device", "تسجيل هذا الجهاز")
         importButton.text = tr("Import WireGuard profile (.conf)", "استيراد ملف WireGuard (.conf)")
         connectButton.text = tr("Connect", "اتصال")
         disconnectButton.text = tr("Disconnect", "قطع الاتصال")
@@ -256,7 +263,7 @@ class MainActivity : Activity() {
                     val bytes = contentResolver.openInputStream(uri)?.use { it.readBytes() }
                         ?: throw IllegalStateException("Cannot read selected file")
                     val parsed = Config.parse(ByteArrayInputStream(bytes))
-                    File(filesDir, CONFIG_FILE).writeBytes(bytes)
+                    DeviceVault(this).writeBytes(CONFIG_FILE, bytes)
                     activeConfig = parsed
                     runOnUiThread {
                         configName.text = tr("WireGuard profile imported", "تم استيراد إعداد WireGuard")
@@ -275,11 +282,10 @@ class MainActivity : Activity() {
     }
 
     private fun loadSavedConfig() {
-        val file = File(filesDir, CONFIG_FILE)
-        if (!file.exists()) return
         worker.execute {
             try {
-                val parsed = file.inputStream().use { Config.parse(it) }
+                val saved = DeviceVault(this).readBytes(CONFIG_FILE) ?: return@execute
+                val parsed = Config.parse(ByteArrayInputStream(saved))
                 activeConfig = parsed
                 runOnUiThread {
                     configName.text = tr("Saved profile loaded", "تم تحميل الإعداد المحفوظ")
@@ -287,8 +293,105 @@ class MainActivity : Activity() {
                     connectButton.isEnabled = true
                 }
             } catch (_: Exception) {
-                file.delete()
-                runOnUiThread { showError(tr("Saved profile is invalid. Import another one.", "الإعداد المحفوظ غير صالح. استورد ملفًا آخر.")) }
+                runOnUiThread { showError(tr("Saved profile could not be decrypted or parsed. Re-enroll or import a profile.", "تعذر فك تشفير الإعداد المحفوظ أو قراءته. سجّل الجهاز مجددًا أو استورد إعدادًا آخر.")) }
+            }
+        }
+    }
+
+    private fun showEnrollmentDialog() {
+        val panel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(24, 8, 24, 0)
+        }
+        val apiInput = android.widget.EditText(this).apply {
+            hint = tr("Control plane HTTPS URL", "رابط API يبدأ بـ HTTPS")
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
+            setSingleLine(true)
+            setText(prefs.getString("control_plane_url", ""))
+        }
+        val inviteInput = android.widget.EditText(this).apply {
+            hint = tr("One-time invitation", "دعوة التسجيل لمرة واحدة")
+            inputType = android.text.InputType.TYPE_CLASS_TEXT
+            setSingleLine(true)
+        }
+        val nameInput = android.widget.EditText(this).apply {
+            hint = tr("Device name", "اسم الجهاز")
+            setSingleLine(true)
+            setText(android.os.Build.MODEL ?: "Android device")
+        }
+        panel.addView(apiInput)
+        panel.addView(inviteInput)
+        panel.addView(nameInput)
+        val dialog = AlertDialog.Builder(this)
+            .setTitle(tr("Register device", "تسجيل جهاز"))
+            .setMessage(tr(
+                "The private key is generated and kept on this device. Only its public key is sent to the server. Use the HTTPS address of your own control plane.",
+                "المفتاح الخاص سيتولد ويظل على الجهاز. الذي يُرسل للسيرفر هو المفتاح العام فقط. استخدم رابط HTTPS الخاص بسيرفرك."
+            ))
+            .setView(panel)
+            .setPositiveButton(tr("Register", "تسجيل")) { _, _ ->
+                val api = apiInput.text.toString().trim()
+                val invitation = inviteInput.text.toString().trim()
+                val deviceName = nameInput.text.toString().trim().ifBlank { "Android device" }
+                if (api.isBlank() || invitation.isBlank()) {
+                    showError(tr("Enter the HTTPS address and invitation.", "اكتب رابط HTTPS والدعوة."))
+                } else {
+                    prefs.edit().putString("control_plane_url", api).apply()
+                    enrollDevice(api, invitation, deviceName)
+                }
+            }
+            .setNegativeButton(tr("Cancel", "إلغاء"), null)
+            .create()
+        dialog.show()
+    }
+
+    private fun enrollDevice(api: String, invitation: String, deviceName: String) {
+        setBusy(true, tr("Creating device identity and registering…", "جارٍ إنشاء هوية الجهاز وتسجيله…"))
+        worker.execute {
+            try {
+                val vault = DeviceVault(this)
+                // Reuse a pending local identity if a previous enrollment attempt failed.
+                val privateKey = vault.readString(PRIVATE_KEY_FILE) ?: KeyPair().getPrivateKey().toBase64().also {
+                    vault.writeString(PRIVATE_KEY_FILE, it)
+                }
+                val pair = KeyPair(Key.fromBase64(privateKey))
+                val enrolled = EnrollmentClient.enroll(
+                    api, invitation, deviceName, pair.publicKey.toBase64()
+                )
+                val configText = """
+                    [Interface]
+                    PrivateKey = $privateKey
+                    Address = ${enrolled.address}
+                    DNS = ${enrolled.dns}
+                    MTU = 1280
+
+                    [Peer]
+                    PublicKey = ${enrolled.serverPublicKey}
+                    Endpoint = ${enrolled.endpoint}
+                    AllowedIPs = ${enrolled.allowedIps}
+                    PersistentKeepalive = ${enrolled.persistentKeepalive}
+                """.trimIndent()
+                val configBytes = configText.toByteArray(Charsets.UTF_8)
+                val parsed = Config.parse(ByteArrayInputStream(configBytes))
+                // Store the complete profile encrypted with an Android Keystore AES-GCM key.
+                vault.writeBytes(CONFIG_FILE, configBytes)
+                vault.writeString("device-id", enrolled.deviceId)
+                activeConfig = parsed
+                runOnUiThread {
+                    configName.text = tr("Device registered", "تم تسجيل الجهاز")
+                    detailText.text = tr(
+                        "Assigned VPN address: %1$s. Private key remains on this device.",
+                        "عنوان الجهاز داخل الشبكة: %1$s. المفتاح الخاص محفوظ على الجهاز."
+                    ).format(enrolled.address)
+                    connectButton.isEnabled = true
+                    setBusy(false)
+                    toast(tr("Registration complete", "اكتمل تسجيل الجهاز"))
+                }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    setBusy(false)
+                    showError(tr("Registration failed: %1$s", "فشل التسجيل: %1$s").format(error.message ?: ""))
+                }
             }
         }
     }
@@ -356,6 +459,7 @@ class MainActivity : Activity() {
     private fun setBusy(busy: Boolean, message: String? = null) {
         if (message != null) detailText.text = message
         importButton.isEnabled = !busy
+        enrollButton.isEnabled = !busy
         settingsButton.isEnabled = !busy
         connectButton.isEnabled = !busy && activeConfig != null && !isTunnelUp
         disconnectButton.isEnabled = !busy && isTunnelUp
