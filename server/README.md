@@ -5,3 +5,6 @@ The Android client uses the official WireGuard tunnel library. A real Linux Wire
 See [CONTROL_PLANE.md](CONTROL_PLANE.md) for enrollment, one-time invitations, device administration, and deployment requirements.
 
 The control plane does not deploy a server or configure NAT/DNS/firewall automatically. `restore_peers.py` and its systemd unit are provided as an untested starting point for restoring enrolled peers after reboot. Do not expose it publicly without HTTPS, a dedicated least-privilege WireGuard helper, rate limiting, and audit logging.
+
+
+Starter configuration examples are provided in `wg0.conf.example`, `vpn.env.example`, and `sysctl.d/99-simplevpn.conf`. They contain placeholders and must be reviewed for the target Linux host; they do not install firewall/NAT or DNS services.
