@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "NovraVPN"
+rootProject.name = "VPNClient"
 include(":app")
