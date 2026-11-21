@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/python3
 """Narrow privileged WireGuard command boundary for the unprivileged API."""
 import base64
 import ipaddress
