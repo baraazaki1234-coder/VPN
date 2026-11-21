@@ -4,6 +4,8 @@ The control plane and Android client do not replace the Linux WireGuard data pla
 
 ## Required interface properties
 
+The enrollment API currently gives clients an IPv4-only default route (`0.0.0.0/0`). This is intentional: do not add `::/0` until IPv6 forwarding, firewalling, and return routing are configured and tested.
+
 - Create `wg0` with the server private key stored only on the server.
 - Use a private VPN subnet matching `VPN_NETWORK` (default `10.77.0.0/24`).
 - Assign the server an address such as `10.77.0.1/24`; do not allocate that address to a client.
@@ -20,6 +22,16 @@ The control plane and Android client do not replace the Linux WireGuard data pla
 The enrollment API adds peers to the live WireGuard interface. `restore_peers.py` re-adds all non-revoked database peers after `wg0` starts. Install `simplevpn-restore-peers.service` after adjusting its paths and interface dependency to match the host.
 
 Example environment file location: `/etc/simplevpn/control-plane.env`. Restrict it to root and the service account that needs the settings. Never put server private keys or the admin key in the Android app or Git.
+
+## Control-plane unit tests
+
+From this directory, install `requirements.txt`, then run:
+
+```sh
+python -m unittest discover -s tests
+```
+
+These focused tests cover enrollment success, invitation expiry, public-key validation, and the IPv4-only route contract. They do not replace a live WireGuard integration test.
 
 ## Routing and NAT verification
 
