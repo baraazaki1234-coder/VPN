@@ -68,7 +68,7 @@ class ControlPlaneTests(unittest.TestCase):
             cp.enroll(cp.EnrollRequest(
                 invitation="invite-token-for-unit-test-0003-extra",
                 device_name="Bad key",
-                public_key=base64.b64encode(b"short").decode(),
+                public_key=base64.b64encode(b"x" * 31).decode(),
             ))
         self.assertEqual(caught.exception.status_code, 400)
 
