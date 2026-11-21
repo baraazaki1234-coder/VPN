@@ -12,7 +12,7 @@ _TEMP = tempfile.TemporaryDirectory()
 os.environ["VPN_DB_PATH"] = str(Path(_TEMP.name) / "control.db")
 os.environ["WG_ENDPOINT"] = "vpn.example.invalid:51820"
 os.environ["WG_SERVER_PUBLIC_KEY"] = base64.b64encode(b"s" * 32).decode()
-os.environ["VPN_ADMIN_KEY"] = "test-admin-key"
+os.environ["VPN_ADMIN_KEY"] = "test-admin-key-for-unit-tests-only-32"
 
 import control_plane as cp  # noqa: E402
 
@@ -112,6 +112,14 @@ class ControlPlaneTests(unittest.TestCase):
             cp.record_enrollment_attempt("192.0.2.12", now=2000 + attempt)
         self.assertTrue(cp.record_enrollment_attempt("192.0.2.13", now=2010))
 
+    def test_admin_key_requires_at_least_32_utf8_bytes(self):
+        with self.assertRaises(RuntimeError):
+            cp.load_admin_key("too-short")
+        self.assertEqual(
+            cp.load_admin_key("a" * 32),
+            "a" * 32,
+        )
+
     def test_admin_readiness_endpoint_requires_admin_key(self):
         with self.assertRaises(cp.HTTPException) as caught:
             cp.admin_data_plane_health(x_admin_key=None)
@@ -128,7 +136,7 @@ class ControlPlaneTests(unittest.TestCase):
             "note": "test note",
         }
         with patch.object(cp, "data_plane_status", return_value=expected):
-            result = cp.admin_data_plane_health(x_admin_key="test-admin-key")
+            result = cp.admin_data_plane_health(x_admin_key="test-admin-key-for-unit-tests-only-32")
         self.assertEqual(result, expected)
 
 
