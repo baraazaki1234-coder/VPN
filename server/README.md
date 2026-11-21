@@ -1,4 +1,4 @@
-# Novra VPN server
+# VPN server
 
 The server component is not deployed yet.
 
