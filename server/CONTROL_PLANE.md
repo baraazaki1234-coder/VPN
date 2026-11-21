@@ -34,7 +34,7 @@ pip install -r requirements.txt
 uvicorn control_plane:app --host 127.0.0.1 --port 8080
 ```
 
-Open `/admin` through the HTTPS reverse proxy. The admin page keeps the key only in the current page memory. Create an invitation and enter it in a future Android enrollment screen.
+Open `/admin` through the HTTPS reverse proxy. The admin page keeps the key only in the current page memory. Create an invitation and enter it in the Android app's Register device screen, together with the HTTPS base URL of this API.
 
 ## API
 
