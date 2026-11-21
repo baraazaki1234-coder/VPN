@@ -1,0 +1,3 @@
+# Install as /etc/sudoers.d/simplevpn-control-plane (mode 0440).
+# The helper is root-owned and enforces a strict allowlist for all arguments.
+simplevpn ALL=(root) NOPASSWD: /usr/local/sbin/simplevpn-wg-helper

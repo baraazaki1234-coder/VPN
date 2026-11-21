@@ -8,3 +8,8 @@ The control plane does not deploy a server or configure NAT/DNS/firewall automat
 
 
 Starter configuration examples are provided in `wg0.conf.example`, `vpn.env.example`, and `sysctl.d/99-simplevpn.conf`. They contain placeholders and must be reviewed for the target Linux host; they do not install firewall/NAT or DNS services.
+
+
+## Privilege separation
+
+Before deployment, follow [PRIVILEGE_BOUNDARY.md](PRIVILEGE_BOUNDARY.md). The API must run unprivileged and use the root-owned fixed-operation WireGuard helper; do not run the FastAPI process as root.
