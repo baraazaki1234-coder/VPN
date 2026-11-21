@@ -21,7 +21,7 @@ DNS must be configured to use a resolver reachable through the VPN. Android lock
 
 The `server/` directory contains an initial FastAPI control plane with 15-minute one-use invitations, server-side IP allocation, public-key enrollment, device listing, traffic counters, and revocation. The Android app has a registration screen that generates the WireGuard key pair locally, sends only the public key over HTTPS, and stores the private key/profile encrypted with Android Keystore AES-GCM. Admin authentication uses a separate secret that must never be embedded in the Android app.
 
-See [server/CONTROL_PLANE.md](server/CONTROL_PLANE.md).
+See [server/CONTROL_PLANE.md](server/CONTROL_PLANE.md) and [server/NETWORK_SETUP.md](server/NETWORK_SETUP.md). The `restore_peers.py` helper and systemd unit provide a starting point for restoring non-revoked peers after the WireGuard interface starts.
 
 ## Not complete / not verified
 
