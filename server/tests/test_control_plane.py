@@ -63,6 +63,22 @@ class ControlPlaneTests(unittest.TestCase):
         self.assertEqual(caught.exception.status_code, 403)
         wg_mock.assert_not_called()
 
+    def test_data_plane_readiness_requires_interface_forwarding_and_dns(self):
+        completed = type("Completed", (), {"stdout": "1\\n"})()
+        with patch.object(cp.subprocess, "run", return_value=completed), \
+             patch.object(cp, "check_dns_resolver", return_value=True):
+            status = cp.data_plane_status()
+        self.assertEqual(status["status"], "ready")
+        self.assertTrue(all(status["checks"].values()))
+
+    def test_data_plane_readiness_reports_missing_forwarding(self):
+        completed = type("Completed", (), {"stdout": "0\\n"})()
+        with patch.object(cp.subprocess, "run", return_value=completed), \
+             patch.object(cp, "check_dns_resolver", return_value=True):
+            status = cp.data_plane_status()
+        self.assertEqual(status["status"], "not_ready")
+        self.assertFalse(status["checks"]["ipv4_forwarding"])
+
     def test_invalid_wireguard_public_key_is_rejected(self):
         with self.assertRaises(cp.HTTPException) as caught:
             cp.enroll(cp.EnrollRequest(
