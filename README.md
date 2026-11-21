@@ -19,7 +19,7 @@ DNS must be configured to use a resolver reachable through the VPN. Android lock
 
 ## Control plane
 
-The `server/` directory contains an initial FastAPI control plane with 15-minute one-use invitations, server-side IP allocation, public-key enrollment, device listing, and revocation. The Android enrollment flow is not connected yet. Device private keys must be generated and retained on the device; only public keys are sent to the server. Admin authentication uses a separate secret that must never be embedded in the Android app.
+The `server/` directory contains an initial FastAPI control plane with 15-minute one-use invitations, server-side IP allocation, public-key enrollment, device listing, traffic counters, and revocation. The Android app has a registration screen that generates the WireGuard key pair locally, sends only the public key over HTTPS, and stores the private key/profile encrypted with Android Keystore AES-GCM. Admin authentication uses a separate secret that must never be embedded in the Android app.
 
 See [server/CONTROL_PLANE.md](server/CONTROL_PLANE.md).
 
