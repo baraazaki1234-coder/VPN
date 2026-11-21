@@ -43,6 +43,7 @@ object EnrollmentClient {
             connectTimeout = 15_000
             readTimeout = 20_000
             doOutput = true
+            instanceFollowRedirects = false
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
             setRequestProperty("Accept", "application/json")
             setFixedLengthStreamingMode(body.size)
