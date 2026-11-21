@@ -89,5 +89,25 @@ class ControlPlaneTests(unittest.TestCase):
         self.assertEqual(caught.exception.status_code, 400)
 
 
+    def test_admin_readiness_endpoint_requires_admin_key(self):
+        with self.assertRaises(cp.HTTPException) as caught:
+            cp.admin_data_plane_health(x_admin_key=None)
+        self.assertEqual(caught.exception.status_code, 401)
+
+    def test_admin_readiness_endpoint_returns_data_plane_checks(self):
+        expected = {
+            "status": "not_ready",
+            "checks": {
+                "wireguard_interface": False,
+                "ipv4_forwarding": True,
+                "dns_resolver": True,
+            },
+            "note": "test note",
+        }
+        with patch.object(cp, "data_plane_status", return_value=expected):
+            result = cp.admin_data_plane_health(x_admin_key="test-admin-key")
+        self.assertEqual(result, expected)
+
+
 if __name__ == "__main__":
     unittest.main()
