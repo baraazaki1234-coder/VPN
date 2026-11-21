@@ -1,27 +1,32 @@
 # VPN
 
-A simple native Android WireGuard client.
+A simple native Android WireGuard client with a separate self-hosted Linux control plane.
 
-## Current app features
+## Android client
 
-- Neutral interface without product branding.
-- Arabic and English UI.
-- Dark and light appearance modes, plus follow-system option.
-- Import and validate standard WireGuard `.conf` profiles.
-- Save the selected profile in app-private storage.
-- Connect/disconnect through Android's VPN consent flow.
-- Display live WireGuard transfer counters while the tunnel is active.
-- Restore the saved profile when Android starts the VPN service in Always-on mode.
-- Shortcut and instructions for Android's Always-on VPN and Block connections without VPN settings.
+- Neutral interface, Arabic and English.
+- Dark, light, and system appearance.
+- Import and validate standard WireGuard profiles.
+- Connect/disconnect through Android's VPN permission flow.
+- Live transfer counters for the active WireGuard tunnel.
+- Android Always-on VPN and lockdown setup guidance.
 
-## Important limitations
+## Network design
 
-This repository does not yet include a VPN server or a pool of VPN endpoints. A valid profile from a reachable WireGuard server is required for actual internet traffic. The app's local tunnel state is not proof of a successful remote handshake or working internet route.
+WireGuard is the encrypted UDP tunnel. Its standard protocol provides authenticated encryption, peer identity, integrity checks, and replay protection. Network packets are routed through Android's VPN TUN interface; on the server, WireGuard delivers decrypted packets to its TUN interface for routing, firewall policy, DNS, and NAT.
 
-Android controls the Always-on VPN and lockdown switches. The app supports Android's Always-on startup callback and can open the system VPN settings, but the user must enable the switches there. Test lockdown behavior before relying on it.
+DNS must be configured to use a resolver reachable through the VPN. Android lockdown is controlled by the operating system and must be enabled by the user in Android VPN settings.
 
-Automatic server selection will only be implemented for real WireGuard endpoints with valid peer configurations. Public DNS and HTTPS test services such as Google or Cloudflare are useful for measuring general network reachability, but they are not interchangeable WireGuard exit servers.
+## Control plane
 
-## Build status
+The `server/` directory contains an initial FastAPI control plane with 15-minute one-use invitations, server-side IP allocation, public-key enrollment, device listing, and revocation. The Android enrollment flow is not connected yet. Device private keys must be generated and retained on the device; only public keys are sent to the server. Admin authentication uses a separate secret that must never be embedded in the Android app.
 
-No APK has been built. Build and device testing remain deferred until explicitly requested.
+See [server/CONTROL_PLANE.md](server/CONTROL_PLANE.md).
+
+## Not complete / not verified
+
+- No VPN server is deployed or selected.
+- Android enrollment is not yet integrated with the API.
+- Server NAT, firewall, DNS, peer persistence, and traffic accounting still need implementation.
+- Endpoint auto-selection needs multiple real WireGuard servers; public DNS services are not VPN endpoints.
+- No APK has been built and no Android device test has been run. Building remains deferred until explicitly requested.
