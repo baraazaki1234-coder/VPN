@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#090F1E"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="24dp"
+        android:paddingEnd="24dp"
+        android:paddingTop="28dp"
+        android:paddingBottom="28dp"
+        android:layoutDirection="rtl">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="NOVRA"
+            android:textColor="#70E1D1"
+            android:textSize="13sp"
+            android:letterSpacing="0.28"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="اتصالك، تحت سيطرتك"
+            android:textColor="#F2F6FF"
+            android:textSize="27sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="نفق WireGuard مشفّر بواجهة بسيطة وواضحة"
+            android:textColor="#9BAAC4"
+            android:textSize="14sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="32dp"
+            android:padding="22dp"
+            android:orientation="vertical"
+            android:background="#121E33">
+
+            <TextView
+                android:id="@+id/statusText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="غير متصل"
+                android:textColor="#F2F6FF"
+                android:textSize="22sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/detailText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="9dp"
+                android:text="استورد ملف إعداد WireGuard للبدء."
+                android:textColor="#9BAAC4"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/configName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:text="لم يتم استيراد إعداد"
+                android:textColor="#70E1D1"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <Button
+            android:id="@+id/importButton"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="24dp"
+            android:text="استيراد ملف الإعداد (.conf)"
+            android:textAllCaps="false"
+            android:textColor="#07131E"
+            android:backgroundTint="#70E1D1" />
+
+        <Button
+            android:id="@+id/connectButton"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="12dp"
+            android:enabled="false"
+            android:text="اتصال"
+            android:textAllCaps="false"
+            android:textColor="#F2F6FF"
+            android:backgroundTint="#245C68" />
+
+        <Button
+            android:id="@+id/disconnectButton"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:layout_marginTop="10dp"
+            android:enabled="false"
+            android:text="قطع الاتصال"
+            android:textAllCaps="false"
+            android:textColor="#F2F6FF"
+            android:backgroundTint="#29364D" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="28dp"
+            android:text="معلومة مهمة"
+            android:textColor="#70E1D1"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="7dp"
+            android:text="التطبيق لا ينشئ خادمًا تلقائيًا. تحتاج إلى ملف إعداد WireGuard صادر من خادم تملكه أو خدمة موثوقة. لا تشارك ملف الإعداد؛ فهو يحتوي على مفتاح خاص."
+            android:textColor="#9BAAC4"
+            android:textSize="13sp"
+            android:lineSpacingExtra="4dp" />
+    </LinearLayout>
+</ScrollView>
