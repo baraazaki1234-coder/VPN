@@ -10,7 +10,6 @@ import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
 import android.view.View
-import android.view.ViewGroup
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ScrollView
@@ -66,7 +65,6 @@ class MainActivity : Activity() {
         private const val REQUEST_IMPORT = 4101
         private const val REQUEST_VPN_PERMISSION = 4102
         private const val CONFIG_FILE = "tunnel.conf"
-        private const val TUNNEL_NAME = "primary"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -96,6 +94,23 @@ class MainActivity : Activity() {
         connectButton.setOnClickListener { requestVpnPermission() }
         disconnectButton.setOnClickListener { disconnect() }
         loadSavedConfig()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (!::backend.isInitialized || !::tunnel.isInitialized) return
+        worker.execute {
+            try {
+                val running = backend.getState(tunnel) == Tunnel.State.UP
+                runOnUiThread {
+                    isTunnelUp = running
+                    statusText.text = if (running) tr("Tunnel active", "النفق يعمل") else tr("Disconnected", "غير متصل")
+                    connectButton.isEnabled = !running && activeConfig != null
+                    disconnectButton.isEnabled = running
+                    if (running) startStatsUpdates() else stopStatsUpdates()
+                }
+            } catch (_: Exception) { }
+        }
     }
 
     private fun bindViews() {
