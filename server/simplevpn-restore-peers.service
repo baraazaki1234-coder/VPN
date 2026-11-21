@@ -1,0 +1,15 @@
+[Unit]
+Description=Restore enrolled SimpleVPN WireGuard peers
+After=wg-quick@wg0.service
+Requires=wg-quick@wg0.service
+
+[Service]
+Type=oneshot
+User=root
+EnvironmentFile=-/etc/simplevpn/control-plane.env
+WorkingDirectory=/opt/simplevpn/server
+ExecStart=/usr/bin/python3 /opt/simplevpn/server/restore_peers.py
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
